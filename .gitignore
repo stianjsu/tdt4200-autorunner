@@ -6,3 +6,4 @@ parallel
 sequential
 ./*/*.res
 *.res
+.csv
