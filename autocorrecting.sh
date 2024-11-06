@@ -13,6 +13,11 @@ if [ ! -d "data_sequential" ]; then
     rm -rf ./data/*
 fi
 
+csv_file="results.csv"
+if [ ! -f "$csv_file" ]; then
+    echo "student_username,status,reason,compares_failed" > "$csv_file"
+fi
+
 # Find all student directories
 student_dirs=$(find ./answers -maxdepth 1 -mindepth 1 -type d)
 
@@ -23,7 +28,7 @@ for student_dir in $student_dirs; do
     total_count=$((total_count + 1))
     
     # Initialize result file
-    result_file_name="res-${username}.res"
+    result_file_name="${username}.res"
     result_file="$student_dir/$result_file_name"
     echo "============================================" > "$result_file"
     echo "EVALUATION RESULTS FOR: $username" >> "$result_file"
@@ -32,7 +37,7 @@ for student_dir in $student_dirs; do
     echo "" >> "$result_file"
     
     # Find the CUDA source file
-    cuda_file=$(find "$student_dir" -name "*.cu" -type f)
+    cuda_file=$(find "$student_dir" -maxdepth 5 -name "*.cu" -type f | head -n 1)
     
     if [ -z "$cuda_file" ]; then
         sed -i "3s/.*/STATUS: [FAILED] - No CUDA source file found/" "$result_file"
@@ -50,6 +55,7 @@ for student_dir in $student_dirs; do
     if [ $? -ne 0 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Compilation error/" "$result_file"
         echo "[ERROR] Compilation failed" >> "$result_file"
+        echo "$username,FAILED,compilation_failed,0" >> "$csv_file"
         continue
     fi
     
@@ -63,6 +69,7 @@ for student_dir in $student_dirs; do
     if [ $run_status -ne 0 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Runtime error/" "$result_file"
         echo "[ERROR] Program execution failed" >> "$result_file"
+        echo "$username,FAILED,runtime_error,0" >> "$csv_file"
         continue
     fi
     
@@ -79,6 +86,7 @@ for student_dir in $student_dirs; do
         
         if [ ! -f "$student_file" ]; then
             echo "[ERROR] Missing output file: $filename" >> "$result_file"
+            echo "$username,FAILED,missing_output_files,0" >> "$csv_file"
             differences_found=1
             break
         fi
@@ -99,11 +107,13 @@ for student_dir in $student_dirs; do
     if [ $differences_found -eq 0 ]; then
         sed -i "3s/.*/STATUS: [PASSED] - All tests successful/" "$result_file"
         echo "[SUCCESS] All answers correct!" >> "$result_file"
+        echo "$username,PASSED,all_correct,0" >> "$csv_file"
         correct_count=$((correct_count + 1))
     else
         sed -i "3s/.*/STATUS: [FAILED] - Output mismatch, ($total_error\/$total_files failed)/" "$result_file"
         echo "[ERROR] Some differences found in the output" >> "$result_file"
         echo "[ERROR] Last wrong file was  $last_wrong_file" >> "$result_file"
+        echo "$username,FAILED,output_mismatch,$total_error" >> "$csv_file"
     fi
     
     # Clean up data directory to save space
@@ -112,12 +122,12 @@ for student_dir in $student_dirs; do
 done
 
 # Create summary report
-echo "============================================" > res-summary.res
-echo "EVALUATION SUMMARY" >> res-summary.res
-echo "============================================" >> res-summary.res
-echo "Total submissions: $total_count" >> res-summary.res
-echo "Correct solutions: $correct_count" >> res-summary.res
-echo "Success rate: $(( (correct_count * 100) / total_count ))%" >> res-summary.res
-echo "" >> res-summary.res
-echo "Detailed results can be found in each student's" >> res-summary.res
-echo "directory as res-{username}.res" >> res-summary.res
+echo "============================================" > grading-summary.res
+echo "EVALUATION SUMMARY" >> grading-summary.res
+echo "============================================" >> grading-summary.res
+echo "Total submissions: $total_count" >> grading-summary.res
+echo "Correct solutions: $correct_count" >> grading-summary.res
+echo "Success rate: $(( (correct_count * 100) / total_count ))%" >> grading-summary.res
+echo "" >> grading-summary.res
+echo "Detailed results can be found in each student's" >> grading-summary.res
+echo "directory as {username}.res" >> grading-summary.res
