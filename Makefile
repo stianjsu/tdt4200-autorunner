@@ -8,7 +8,7 @@ IMAGES=$(shell find data -type f | sed s/\\.dat/.png/g | sed s/data/images/g )
 .PHONY: all clean dirs plot movie parallel sequential autocorrect clean_autocorrect
 all: dirs sequential
 dirs:
-	mkdir -p images
+	mkdir -p images data data_sequential
 sequential: ${SEQUENTIAL_SRC_FILES}
 	$(CC) $^ $(CFLAGS) -o $@ $(LDLIBS)
 parallel: ${PARALLEL_SRC_FILES}

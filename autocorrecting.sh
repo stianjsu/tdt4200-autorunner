@@ -5,7 +5,7 @@ correct_count=0
 total_count=0
 
 # Create sequential reference data if it doesn't exist
-if [ ! -d "data_sequential" ]; then
+if [ ! -d "data_sequential" ] || [ -z "$( ls -A './data_sequential' )" ]; then
     echo "Generating sequential reference data..."
     mkdir -p data_sequential
     ./sequential
@@ -64,6 +64,7 @@ for student_dir in $student_dirs; do
         sed -i "3s/.*/STATUS: [FAILED] - Compilation error/" "$result_file"
         echo "[ERROR] Compilation failed" >> "$result_file"
         echo "$username,FAILED,compilation_failed,,0" >> "$csv_file"
+        echo "      Compilation failed"      
         continue
     fi
     
@@ -93,7 +94,7 @@ for student_dir in $student_dirs; do
         kill $timer_pid 2>/dev/null
         wait $timer_pid 2>/dev/null
     ################
-    
+
     end_time=`date +%s.%4N`
     cd - > /dev/null
 
@@ -103,9 +104,8 @@ for student_dir in $student_dirs; do
     if [ $run_status -eq 124 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Exceeded 60-second time limit/" "$result_file"
         echo "[ERROR] Program execution timed out" >> "$result_file"
-        echo "    Timout"
+        echo "      Timout"
         echo "$username,FAILED,timeout,$string_runtime,0" >> "$csv_file"
-        continue
     elif [ $run_status -ne 0 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Runtime error/" "$result_file"
         echo "[ERROR] Program execution failed" >> "$result_file"
@@ -118,6 +118,7 @@ for student_dir in $student_dirs; do
     
     # Compare results
     echo "[INFO] Comparing results..." >> "$result_file"
+    echo "      Comparing results..."
     differences_found=0
     last_wrong_file=""
     total_files=0
