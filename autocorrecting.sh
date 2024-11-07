@@ -19,7 +19,7 @@ if [ ! -f "$csv_file" ]; then
 fi
 
 # Find all student directories
-student_dirs=$(find ./answers -maxdepth 1 -mindepth 1 -type d)
+student_dirs=$(find ./answers -maxdepth 1 -mindepth 1 -type d | sort)
 
 # Process each student submission
 for student_dir in $student_dirs; do
@@ -29,6 +29,7 @@ for student_dir in $student_dirs; do
     
     # Initialize result file
     result_file_name="${username}.res"
+    prog_output_file_name="${username}-out.res"
     result_file="$student_dir/$result_file_name"
 
     # Continue if student already has been processed
@@ -68,17 +69,44 @@ for student_dir in $student_dirs; do
     
     # Run the program
     echo "[INFO] Running program..." >> "$result_file"
+    echo "      Running program..."
     cd "$student_dir"
     start_time=`date +%s.%4N`
-    ./wave_2d 2>> "$result_file_name"
+
+    ######## handle ctrl+c while executing
+    ./wave_2d 2>> "$result_file_name" 1>> "$prog_output_file_name" &
+        pid=$!
+
+        # Wait for up to 60 seconds, but allow ctrl+c
+        wait_timeout=60
+        (
+            sleep $wait_timeout
+            kill $pid 2>/dev/null
+        ) &
+        timer_pid=$!
+
+        # Wait for the main process
+        wait $pid
+        run_status=$?
+
+        # Clean up timer
+        kill $timer_pid 2>/dev/null
+        wait $timer_pid 2>/dev/null
+    ################
+    
     end_time=`date +%s.%4N`
-    run_status=$?
     cd - > /dev/null
 
     runtime=$(echo "$end_time - $start_time" | bc)
     string_runtime=$(printf "%.3fs" $runtime)
     
-    if [ $run_status -ne 0 ]; then
+    if [ $run_status -eq 124 ]; then
+        sed -i "3s/.*/STATUS: [FAILED] - Exceeded 60-second time limit/" "$result_file"
+        echo "[ERROR] Program execution timed out" >> "$result_file"
+        echo "    Timout"
+        echo "$username,FAILED,timeout,$string_runtime,0" >> "$csv_file"
+        continue
+    elif [ $run_status -ne 0 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Runtime error/" "$result_file"
         echo "[ERROR] Program execution failed" >> "$result_file"
         echo "$username,FAILED,runtime_error,$string_runtime,0" >> "$csv_file"
@@ -87,7 +115,6 @@ for student_dir in $student_dirs; do
 
     echo "[INFO] Execution time was $string_runtime." >> "$result_file"
     sed -i "4s/.*/RUNTIME: $string_runtime/" "$result_file"
-
     
     # Compare results
     echo "[INFO] Comparing results..." >> "$result_file"

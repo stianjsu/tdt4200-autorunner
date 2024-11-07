@@ -21,4 +21,8 @@ clean_autocorrect:
 	rm -rf ./*.res
 	rm -rf ./*/*.res
 	rm -rf ./*/*/*.res
+	rm -rf ./data
+	rm -rf ./*/data
+	rm -rf ./*/*/data
+	rm -f results.csv 
 

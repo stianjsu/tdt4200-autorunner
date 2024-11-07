@@ -18,6 +18,11 @@ for student_dir in $student_dirs; do
         # Check if unzip was successful
         if [ $? -eq 0 ]; then
             echo ">>>> Successfully unzipped $zip_file"
+
+            find "$student_dir" -name "__MACOSX" -type d -exec rm -rf {} +
+            find "$student_dir" -name ".DS_Store" -type f -delete
+            find "$student_dir" -name "._*" -type f -delete
+
             # Remove the zip file
             rm "$zip_file"
             echo ">>>> Deleted $zip_file"

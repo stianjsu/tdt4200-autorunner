@@ -8,3 +8,5 @@ sequential
 *.res
 *.csv
 answers-test
+test_set
+bb_export
