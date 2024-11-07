@@ -101,11 +101,12 @@ for student_dir in $student_dirs; do
     runtime=$(echo "$end_time - $start_time" | bc)
     string_runtime=$(printf "%.3fs" $runtime)
     
-    if [ $run_status -eq 124 ]; then
+    if [ $run_status -eq 143 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Exceeded 60-second time limit/" "$result_file"
         echo "[ERROR] Program execution timed out" >> "$result_file"
         echo "      Timout"
         echo "$username,FAILED,timeout,$string_runtime,0" >> "$csv_file"
+        continue
     elif [ $run_status -ne 0 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Runtime error/" "$result_file"
         echo "[ERROR] Program execution failed" >> "$result_file"
