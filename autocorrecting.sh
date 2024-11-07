@@ -30,6 +30,13 @@ for student_dir in $student_dirs; do
     # Initialize result file
     result_file_name="${username}.res"
     result_file="$student_dir/$result_file_name"
+
+    # Continue if student already has been processed
+    if [ -e "$result_file" ]; then
+        echo "  Student already has a result file"
+        continue
+    fi
+
     echo "============================================" > "$result_file"
     echo "EVALUATION RESULTS FOR: $username" >> "$result_file"
     echo "STATUS: PROCESSING" >> "$result_file"
