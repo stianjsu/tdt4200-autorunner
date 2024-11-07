@@ -15,7 +15,7 @@ fi
 
 csv_file="results.csv"
 if [ ! -f "$csv_file" ]; then
-    echo "student_username,status,reason,compares_failed" > "$csv_file"
+    echo "student_username,status,reason,running_time,compares_failed" > "$csv_file"
 fi
 
 # Find all student directories
@@ -40,6 +40,7 @@ for student_dir in $student_dirs; do
     echo "============================================" > "$result_file"
     echo "EVALUATION RESULTS FOR: $username" >> "$result_file"
     echo "STATUS: PROCESSING" >> "$result_file"
+    echo "RUNTIME: ..." >> "$result_file"
     echo "============================================" >> "$result_file"
     echo "" >> "$result_file"
     
@@ -51,34 +52,42 @@ for student_dir in $student_dirs; do
         echo "[ERROR] No CUDA source file found" >> "$result_file"
         continue
     fi
-    
     # Create data directory
     mkdir -p "$student_dir/data"
     
     # Compile the CUDA program
-    echo "[INFO] Compiling submission..." >> "$result_file"
+    echo "[INFO] Compiling submission... ($cuda_file)" >> "$result_file"
     nvcc "$cuda_file" -w -O2 -fmad=false -o "$student_dir/wave_2d" 2>> "$result_file"
     
     if [ $? -ne 0 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Compilation error/" "$result_file"
         echo "[ERROR] Compilation failed" >> "$result_file"
-        echo "$username,FAILED,compilation_failed,0" >> "$csv_file"
+        echo "$username,FAILED,compilation_failed,,0" >> "$csv_file"
         continue
     fi
     
     # Run the program
     echo "[INFO] Running program..." >> "$result_file"
     cd "$student_dir"
+    start_time=`date +%s.%4N`
     ./wave_2d 2>> "$result_file_name"
+    end_time=`date +%s.%4N`
     run_status=$?
     cd - > /dev/null
+
+    runtime=$(echo "$end_time - $start_time" | bc)
+    string_runtime=$(printf "%.3fs" $runtime)
     
     if [ $run_status -ne 0 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Runtime error/" "$result_file"
         echo "[ERROR] Program execution failed" >> "$result_file"
-        echo "$username,FAILED,runtime_error,0" >> "$csv_file"
+        echo "$username,FAILED,runtime_error,$string_runtime,0" >> "$csv_file"
         continue
     fi
+
+    echo "[INFO] Execution time was $string_runtime." >> "$result_file"
+    sed -i "4s/.*/RUNTIME: $string_runtime/" "$result_file"
+
     
     # Compare results
     echo "[INFO] Comparing results..." >> "$result_file"
@@ -86,6 +95,7 @@ for student_dir in $student_dirs; do
     last_wrong_file=""
     total_files=0
     total_error=0
+    fail_reason=""
     
     for ref_file in ./data_sequential/*.dat; do
         filename=$(basename "$ref_file")
@@ -93,7 +103,7 @@ for student_dir in $student_dirs; do
         
         if [ ! -f "$student_file" ]; then
             echo "[ERROR] Missing output file: $filename" >> "$result_file"
-            echo "$username,FAILED,missing_output_files,0" >> "$csv_file"
+            fail_reason="missing_output_files"
             differences_found=1
             break
         fi
@@ -102,6 +112,7 @@ for student_dir in $student_dirs; do
         if ! diff -q "$ref_file" "$student_file" >/dev/null; then
             if [ $differences_found == 0 ]; then
               echo "[ERROR] Differences found in $filename" >> "$result_file"
+              fail_reason="output_mismatch"
               differences_found=1
               total_error=1
             else
@@ -114,13 +125,13 @@ for student_dir in $student_dirs; do
     if [ $differences_found -eq 0 ]; then
         sed -i "3s/.*/STATUS: [PASSED] - All tests successful/" "$result_file"
         echo "[SUCCESS] All answers correct!" >> "$result_file"
-        echo "$username,PASSED,all_correct,0" >> "$csv_file"
+        echo "$username,PASSED,all_correct,$string_runtime,0" >> "$csv_file"
         correct_count=$((correct_count + 1))
     else
         sed -i "3s/.*/STATUS: [FAILED] - Output mismatch, ($total_error\/$total_files failed)/" "$result_file"
         echo "[ERROR] Some differences found in the output" >> "$result_file"
         echo "[ERROR] Last wrong file was  $last_wrong_file" >> "$result_file"
-        echo "$username,FAILED,output_mismatch,$total_error" >> "$csv_file"
+        echo "$username,FAILED,$fail_reason,$string_runtime,$total_error" >> "$csv_file"
     fi
     
     # Clean up data directory to save space
