@@ -15,7 +15,7 @@ fi
 
 csv_file="results.csv"
 if [ ! -f "$csv_file" ]; then
-    echo "student_username,status,reason,running_time,compares_failed" > "$csv_file"
+    echo "student_username,status,reason,running_time(s),compares_failed" > "$csv_file"
 fi
 
 # Find all student directories
@@ -46,13 +46,23 @@ for student_dir in $student_dirs; do
     echo "" >> "$result_file"
     
     # Find the CUDA source file
-    cuda_file=$(find "$student_dir" -maxdepth 5 -name "*.cu" -type f | head -n 1)
-    
-    if [ -z "$cuda_file" ]; then
+    cuda_files=($(find "$student_dir" -maxdepth 5 -name "*.cu" -type f))
+
+    # Check if no files found
+    if [ ${#cuda_files[@]} -eq 0 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - No CUDA source file found/" "$result_file"
         echo "[ERROR] No CUDA source file found" >> "$result_file"
         continue
     fi
+
+    # Warn if multiple .cu files found
+    if [ ${#cuda_files[@]} -gt 1 ]; then
+        echo "[WARNING] Multiple CUDA source files found. Using: ${cuda_files[0]}" >> "$result_file"
+        echo "      [WARNING] Multiple CUDA source files found. Using: ${cuda_files[0]}"
+    fi
+
+    cuda_file="${cuda_files[0]}"
+
     # Create data directory
     mkdir -p "$student_dir/data"
     
@@ -63,7 +73,7 @@ for student_dir in $student_dirs; do
     if [ $? -ne 0 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Compilation error/" "$result_file"
         echo "[ERROR] Compilation failed" >> "$result_file"
-        echo "$username,FAILED,compilation_failed,,0" >> "$csv_file"
+        echo "$username,FAILED,compilation_failed,," >> "$csv_file"
         echo "      Compilation failed"      
         continue
     fi
@@ -78,8 +88,8 @@ for student_dir in $student_dirs; do
     ./wave_2d 2>> "$result_file_name" 1>> "$prog_output_file_name" &
         pid=$!
 
-        # Wait for up to 60 seconds, but allow ctrl+c
-        wait_timeout=60
+        # Wait for up to 120 seconds, but allow ctrl+c
+        wait_timeout=10
         (
             sleep $wait_timeout
             kill $pid 2>/dev/null
@@ -99,18 +109,19 @@ for student_dir in $student_dirs; do
     cd - > /dev/null
 
     runtime=$(echo "$end_time - $start_time" | bc)
-    string_runtime=$(printf "%.3fs" $runtime)
+    string_runtime=$(printf "%.3f" $runtime)
+    timedout=0
     
     if [ $run_status -eq 143 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Exceeded 60-second time limit/" "$result_file"
         echo "[ERROR] Program execution timed out" >> "$result_file"
         echo "      Timout"
-        echo "$username,FAILED,timeout,$string_runtime,0" >> "$csv_file"
-        continue
+        timedout=1
+        #echo "$username,FAILED,timeout,$string_runtime,0" >> "$csv_file"
     elif [ $run_status -ne 0 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Runtime error/" "$result_file"
         echo "[ERROR] Program execution failed" >> "$result_file"
-        echo "$username,FAILED,runtime_error,$string_runtime,0" >> "$csv_file"
+        echo "$username,FAILED,runtime_error,$string_runtime," >> "$csv_file"
         continue
     fi
 
@@ -151,7 +162,11 @@ for student_dir in $student_dirs; do
         fi
     done
     
-    if [ $differences_found -eq 0 ]; then
+    if [ $timedout -eq 1 ]; then
+        echo "[ERROR] Process timed out, tried to compare result" >> "$result_file"
+        echo "[ERROR] Last wrong file was  $last_wrong_file" >> "$result_file"
+        echo "$username,FAILED,timeout,$string_runtime,$total_error" >> "$csv_file"
+    elif [ $differences_found -eq 0 ]; then
         sed -i "3s/.*/STATUS: [PASSED] - All tests successful/" "$result_file"
         echo "[SUCCESS] All answers correct!" >> "$result_file"
         echo "$username,PASSED,all_correct,$string_runtime,0" >> "$csv_file"

@@ -5,7 +5,7 @@ SEQUENTIAL_SRC_FILES=wave_2d_sequential.c
 .PHONY: all clean dirs plot movie parallel sequential autocorrect clean_autocorrect
 all: dirs sequential
 dirs:
-	mkdir -p images data data_sequential
+	mkdir -p data data_sequential
 sequential: ${SEQUENTIAL_SRC_FILES}
 	$(CC) $^ $(CFLAGS) -o $@ $(LDLIBS)
 clean:
