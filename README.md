@@ -1,17 +1,13 @@
 ## How to:
 
 1. Import submissions from blackboard
-2. unzip all submissions into ./bb_export
-3. Run sort_bb_export_into_folders
-   1. Will sort all submissions with this format: ./answers/{username}/submission
-4. run unzip_student_files.sh
-   1. Will unzip all submissions that are zipped. 
-5. make all
-6. make autocorrect
+2. Run unzip_and_sort.py
+3. make all
+4. make autocorrect
 
 
 ## how it works:
-- Assume submissions in this format: ./answers/username/{submissionstuff}
+- Submissions in this format: ./answers/username/{submissionstuff} after running unzip_and_sort.py
 - Looks through each folder in ./answers and gets username
   - Finds a .cu file, compiles, runs and compares with reference data
   - Generates a report in that students folder
