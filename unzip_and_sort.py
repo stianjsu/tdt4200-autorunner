@@ -110,8 +110,64 @@ def unzip_student_submisssions():
 
             except Exception as e:
                 print(f">>>> [ERROR] error unzipping {zip_file}: {str(e)}")
+                
+        flatten_directory(student_dir)
+        print(">>>> [INFO] flattened dir")
+        
     print("Finished processing all directories")
     
+    
+def flatten_directory(directory: Path) -> None:
+    """
+    Flatten a directory by moving all files to the root level,
+    handling duplicates with counters.
+    
+    Args:
+        directory (Path): Path to the directory to flatten
+    """
+    seen_files = set()
+    
+    # First collect all files to move
+    to_move = []
+    for root, _, files in os.walk(directory):
+        if Path(root) == directory:  # Skip root directory
+            seen_files.update(files)
+            continue
+            
+        for file in files:
+            current_path = Path(root) / file
+            to_move.append((current_path, file))
+    
+    # Move files with duplicate handling
+    for current_path, filename in to_move:
+        new_path = directory / filename
+        
+        # Handle duplicates with counter
+        if filename in seen_files:
+            name = Path(filename).stem
+            suffix = Path(filename).suffix
+            counter = 1
+            
+            while f"{name}_{counter}{suffix}" in seen_files:
+                counter += 1
+                
+            new_filename = f"{name}_{counter}{suffix}"
+            new_path = directory / new_filename
+            seen_files.add(new_filename)
+            print(f"[WARNING] duplicate file found {new_path}\n\n")
+        else:
+            seen_files.add(filename)
+        
+        shutil.move(str(current_path), str(new_path))
+    
+    # Clean up empty directories
+    for root, dirs, _ in os.walk(directory, topdown=False):
+        for dir in dirs:
+            try:
+                os.rmdir(os.path.join(root, dir))
+            except OSError:
+                # Directory not empty, skip it
+                pass
 
 def main():
     # Remove existing folders

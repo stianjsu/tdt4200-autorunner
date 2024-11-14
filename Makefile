@@ -20,4 +20,5 @@ clean_autocorrect:
 	rm -rf ./*/data
 	rm -rf ./*/*/data
 	rm -f results.csv 
+	rm -f ./answers/results.csv 
 

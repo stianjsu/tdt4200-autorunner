@@ -89,7 +89,7 @@ for student_dir in $student_dirs; do
         pid=$!
 
         # Wait for up to 120 seconds, but allow ctrl+c
-        wait_timeout=10
+        wait_timeout=120
         (
             sleep $wait_timeout
             kill $pid 2>/dev/null
@@ -110,13 +110,13 @@ for student_dir in $student_dirs; do
 
     runtime=$(echo "$end_time - $start_time" | bc)
     string_runtime=$(printf "%.3f" $runtime)
-    timedout=0
+    timed_out=0
     
     if [ $run_status -eq 143 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Exceeded 60-second time limit/" "$result_file"
         echo "[ERROR] Program execution timed out" >> "$result_file"
         echo "      Timout"
-        timedout=1
+        timed_out=1
         #echo "$username,FAILED,timeout,$string_runtime,0" >> "$csv_file"
     elif [ $run_status -ne 0 ]; then
         sed -i "3s/.*/STATUS: [FAILED] - Runtime error/" "$result_file"
@@ -162,7 +162,7 @@ for student_dir in $student_dirs; do
         fi
     done
     
-    if [ $timedout -eq 1 ]; then
+    if [ $timed_out -eq 1 ]; then
         echo "[ERROR] Process timed out, tried to compare result" >> "$result_file"
         echo "[ERROR] Last wrong file was  $last_wrong_file" >> "$result_file"
         echo "$username,FAILED,timeout,$string_runtime,$total_error" >> "$csv_file"
@@ -183,13 +183,17 @@ for student_dir in $student_dirs; do
     rm -f "$student_dir/wave_2d"
 done
 
+summary_file=./answers/grading-summary.res
+
 # Create summary report
-echo "============================================" > grading-summary.res
-echo "EVALUATION SUMMARY" >> grading-summary.res
-echo "============================================" >> grading-summary.res
-echo "Total submissions: $total_count" >> grading-summary.res
-echo "Correct solutions: $correct_count" >> grading-summary.res
-echo "Success rate: $(( (correct_count * 100) / total_count ))%" >> grading-summary.res
-echo "" >> grading-summary.res
-echo "Detailed results can be found in each student's" >> grading-summary.res
-echo "directory as {username}.res" >> grading-summary.res
+echo "============================================" > "$summary_file"
+echo "EVALUATION SUMMARY" >> "$summary_file"
+echo "============================================" >> "$summary_file"
+echo "Total submissions: $total_count" >> "$summary_file"
+echo "Correct solutions: $correct_count" >> "$summary_file"
+echo "Success rate: $(( (correct_count * 100) / total_count ))%" >> "$summary_file"
+echo "" >> "$summary_file"
+echo "Detailed results can be found in each student's" >> "$summary_file"
+echo "directory as {username}.res" >> "$summary_file"
+
+cp results.csv ./answers/results.csv
